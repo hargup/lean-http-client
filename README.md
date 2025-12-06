@@ -1,5 +1,7 @@
 # HTTP Client for Lean 4
 
+> **Note:** This project was vibe coded with the help of Claude Code and Cursor. No guarantees.
+
 A type-safe, composable HTTP/1.1 client library for Lean 4. Built on top of `curl` via FFI, providing a clean, idiomatic Lean interface for making HTTP requests.
 
 ## Features
