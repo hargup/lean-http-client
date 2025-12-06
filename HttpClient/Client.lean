@@ -45,7 +45,7 @@ namespace Client
       -- This is not fully RFC compliant but handles common cases
       let dir := if base.path.endsWith "/" then base.path else
         match base.path.revPosOf '/' with
-        | some pos => base.path.extract 0 (base.path.next pos)
+        | some pos => String.Pos.Raw.extract base.path (String.Pos.Raw.mk 0) (String.Pos.Raw.next base.path pos)
         | none => "/"
       some { base with path := dir ++ location, query := none, fragment := none }
 

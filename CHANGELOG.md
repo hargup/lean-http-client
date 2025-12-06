@@ -14,3 +14,4 @@
 - **Breaking**: `Response.body` type changed from `String` to `HttpBody`.
 - **Refactor**: `Request.withBody` now takes `HttpBody`.
 
+

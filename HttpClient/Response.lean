@@ -17,21 +17,21 @@ structure Response where
 namespace Response
 
   /-- Helper: find substring -/
-  private partial def findSubstr? (s : String) (pattern : String) : Option (String.Pos × String.Pos) :=
-    if pattern.isEmpty then some (0, 0)
+  private partial def findSubstr? (s : String) (pattern : String) : Option (String.Pos.Raw × String.Pos.Raw) :=
+    if pattern.isEmpty then some (String.Pos.Raw.mk 0, String.Pos.Raw.mk 0)
     else
       let pLen := pattern.toSubstring.bsize
-      let rec loop (pos : String.Pos) : Option (String.Pos × String.Pos) :=
-        if s.atEnd pos then none
+      let rec loop (pos : String.Pos.Raw) : Option (String.Pos.Raw × String.Pos.Raw) :=
+        if String.Pos.Raw.atEnd s pos then none
         else
-          -- String.Pos is a wrapper around Nat, we can construct it
-          let endPos : String.Pos := ⟨pos.byteIdx + pLen⟩
+          -- String.Pos.Raw is a wrapper around Nat, we can construct it
+          let endPos : String.Pos.Raw := String.Pos.Raw.mk (pos.byteIdx + pLen)
           -- Check if match
-          if (s.extract pos endPos) == pattern then
+          if (String.Pos.Raw.extract s pos endPos) == pattern then
             some (pos, endPos)
           else
-            loop (s.next pos)
-      loop 0
+            loop (String.Pos.Raw.next s pos)
+      loop (String.Pos.Raw.mk 0)
 
   /-- Helper: contains substring -/
   private def containsSubstr (s : String) (pattern : String) : Bool :=
@@ -72,8 +72,8 @@ namespace Response
     let crlf := "\r\n"
     match findSubstr? s crlf with
     | some ⟨startPos, endPos⟩ =>
-      let first := s.extract 0 startPos
-      let rest := s.extract endPos s.endPos
+      let first := String.Pos.Raw.extract s (String.Pos.Raw.mk 0) startPos
+      let rest := String.Pos.Raw.extract s endPos (String.endPos s)
       some (first, rest)
     | none => none
 
@@ -82,8 +82,8 @@ namespace Response
     let doubleCrlf := "\r\n\r\n"
     match findSubstr? s doubleCrlf with
     | some ⟨startPos, endPos⟩ =>
-      let headers := s.extract 0 startPos
-      let body := s.extract endPos s.endPos
+      let headers := String.Pos.Raw.extract s (String.Pos.Raw.mk 0) startPos
+      let body := String.Pos.Raw.extract s endPos (String.endPos s)
       some (headers, body)
     | none => none
 
