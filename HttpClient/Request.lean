@@ -13,7 +13,8 @@ structure Request where
   method : Method
   url : Url
   headers : Headers
-  body : Option String
+  body : Option HttpBody
+  responsePath : Option System.FilePath
   deriving Repr, Inhabited
 
 namespace Request
@@ -22,7 +23,8 @@ namespace Request
     { method := method
       url := url
       headers := Headers.empty
-      body := none }
+      body := none
+      responsePath := none }
 
   /-- Create a GET request -/
   def get (url : Url) : Request := new .GET url
@@ -58,24 +60,41 @@ namespace Request
     { r with headers := headers ++ r.headers }
 
   /-- Set the request body -/
-  def withBody (r : Request) (body : String) : Request :=
-    { r with body := some body }
-    |>.setHeader "Content-Length" (toString body.length)
+  def withBody (r : Request) (body : HttpBody) : Request :=
+    let r := { r with body := some body }
+    match body with
+    | .Text s => r.setHeader "Content-Length" (toString s.length)
+    | .Binary b => r.setHeader "Content-Length" (toString b.size)
+    | .Stream _ => r
 
   /-- Set JSON body with appropriate content type -/
   def withJson (r : Request) (json : String) : Request :=
-    r.withBody json
+    r.withBody (.Text json)
     |>.setHeader "Content-Type" "application/json"
 
   /-- Set form-urlencoded body with appropriate content type -/
   def withForm (r : Request) (form : String) : Request :=
-    r.withBody form
+    r.withBody (.Text form)
     |>.setHeader "Content-Type" "application/x-www-form-urlencoded"
 
   /-- Set plain text body -/
   def withText (r : Request) (text : String) : Request :=
-    r.withBody text
+    r.withBody (.Text text)
     |>.setHeader "Content-Type" "text/plain"
+
+  /-- Set binary body -/
+  def withBinary (r : Request) (data : Bytes) : Request :=
+    r.withBody (.Binary data)
+    |>.setHeader "Content-Type" "application/octet-stream"
+
+  /-- Set stream body -/
+  def withStream (r : Request) (path : System.FilePath) : Request :=
+    r.withBody (.Stream path)
+    |>.setHeader "Content-Type" "application/octet-stream"
+
+  /-- Stream response to a file -/
+  def streamTo (r : Request) (path : System.FilePath) : Request :=
+    { r with responsePath := some path }
 
   /-- Add Accept header -/
   def accept (r : Request) (contentType : String) : Request :=
@@ -118,7 +137,11 @@ namespace Request
                    else r.headers.add "Host" r.url.authority
     let headerLines := headers.toLines
     let headerBlock := crlf.intercalate headerLines
-    let body := r.body.getD ""
+    let body := match r.body with
+      | some (.Text s) => s
+      | some (.Binary _) => "<binary>"
+      | some (.Stream p) => s!"<stream {p}>"
+      | none => ""
     s!"{requestLine}{crlf}{headerBlock}{crlf}{crlf}{body}"
 
   instance : ToString Request where

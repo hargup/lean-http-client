@@ -53,7 +53,6 @@ def curl : Transport := {
     let mut args := #[
       "--silent",           -- Suppress progress meter
       "--show-error",       -- Show errors if they occur
-      "--include",          -- Include headers in output
       "--no-buffer",        -- Disable buffering
       "--max-time", timeoutSec,
       "--max-redirs", "0"   -- Do not auto-follow redirects
@@ -74,19 +73,51 @@ def curl : Transport := {
       args := args.push s!"Host: {req.url.authority}"
 
     -- Body
+    let mut tmpBodyFile : Option System.FilePath := none
+    
     match req.body with
-    | some body =>
-      args := args.push "--data-raw" -- Use data-raw to avoid @file processing
-      args := args.push body
+    | some (.Text s) =>
+      args := args.push "--data-raw"
+      args := args.push s
+    | some (.Binary b) =>
+      -- Write to temp file
+      let tmp : System.FilePath := s!"req-body-{← IO.monoMsNow}.tmp"
+      IO.FS.writeBinFile tmp b
+      tmpBodyFile := some tmp
+      args := args.push "--data-binary"
+      args := args.push s!"@{tmp}"
+    | some (.Stream p) =>
+      args := args.push "--data-binary"
+      args := args.push s!"@{p}"
     | none => pure ()
 
-    -- URL (last argument)
-    args := args.push req.url.toString
+    -- Handle Response Destination
+    let result ← match req.responsePath with
+    | none =>
+      -- Standard stdout capture
+      args := args.push "--include" -- Include headers
+      args := args.push req.url.toString
+      
+      IO.Process.output {
+        cmd := "curl"
+        args := args
+      }
 
-    let result ← IO.Process.output {
-      cmd := "curl"
-      args := args
-    }
+    | some path =>
+      -- Stream to file
+      let headerFile : System.FilePath := s!"{path}.headers"
+      args := args.push "--dump-header"; args := args.push headerFile.toString
+      args := args.push "--output"; args := args.push path.toString
+      args := args.push req.url.toString
+      
+      IO.Process.output {
+        cmd := "curl"
+        args := args
+      }
+
+    -- Cleanup temp body file
+    if let some tmp := tmpBodyFile then
+      try IO.FS.removeFile tmp catch _ => pure ()
 
     -- Handle timeouts (curl exit code 28)
     if result.exitCode == 28 then
@@ -96,10 +127,38 @@ def curl : Transport := {
     if result.exitCode != 0 then
       return .error (.systemError s!"curl exited with {result.exitCode}: {result.stderr}")
 
-    -- Parse the response
-    match Response.parse result.stdout with
-    | some response => return .ok response
-    | none => return .error (.parseError "Failed to parse HTTP response")
+    -- Parse Response
+    match req.responsePath with
+    | none =>
+      -- Parse stdout (headers + body)
+      match Response.parse result.stdout with
+      | some response => return .ok response
+      | none => return .error (.parseError "Failed to parse HTTP response")
+    
+    | some path =>
+      -- Read headers from file
+      let headerFile : System.FilePath := s!"{path}.headers"
+      if ← System.FilePath.pathExists headerFile then
+        let headerRaw ← IO.FS.readFile headerFile
+        -- Cleanup
+        try IO.FS.removeFile headerFile catch _ => pure ()
+        
+        -- Parse headers
+        match Response.splitOnCRLF headerRaw with
+        | some (statusLine, headerRest) =>
+             match Response.parseStatusLine statusLine with
+             | some status =>
+                 let headers := Response.parseHeaders headerRest
+                 return .ok {
+                   status := status
+                   headers := headers
+                   body := .Stream path
+                 }
+             | none => return .error (.parseError "Failed to parse status line from dump-header")
+        | none => return .error (.parseError "Empty header file")
+
+      else
+        return .error (.systemError "Header file missing after curl success")
 }
 
 end Transport

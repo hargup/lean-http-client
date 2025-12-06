@@ -210,4 +210,34 @@ namespace Headers
     toString h := "\n".intercalate h.toLines
 end Headers
 
+abbrev Bytes := ByteArray
+
+inductive HttpBody where
+  | Text (s : String)
+  | Binary (b : Bytes)
+  | Stream (path : System.FilePath)
+  deriving Inhabited
+
+namespace HttpBody
+  def toString : HttpBody → String
+    | Text s => s
+    | Binary b => s!"<Binary {b.size} bytes>"
+    | Stream p => s!"<Stream {p}>"
+
+  instance : ToString HttpBody where
+    toString := HttpBody.toString
+
+  instance : Repr HttpBody where
+    reprPrec b _ :=
+      match b with
+      | .Text s => "HttpBody.Text " ++ repr s
+      | .Binary b => "HttpBody.Binary <" ++ repr b.size ++ " bytes>"
+      | .Stream p => "HttpBody.Stream " ++ repr p
+    
+  def length : HttpBody → Nat
+    | Text s => s.length
+    | Binary b => b.size
+    | Stream _ => 0 -- Unknown without IO
+end HttpBody
+
 end HttpClient

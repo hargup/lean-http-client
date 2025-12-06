@@ -11,7 +11,7 @@ namespace HttpClient
 structure Response where
   status : Status
   headers : Headers
-  body : String
+  body : HttpBody
   deriving Repr, Inhabited
 
 namespace Response
@@ -68,7 +68,7 @@ namespace Response
     | none => false
 
   /-- Helper: split string on first CRLF -/
-  private def splitOnCRLF (s : String) : Option (String × String) :=
+  def splitOnCRLF (s : String) : Option (String × String) :=
     let crlf := "\r\n"
     match findSubstr? s crlf with
     | some ⟨startPos, endPos⟩ =>
@@ -78,7 +78,7 @@ namespace Response
     | none => none
 
   /-- Helper: find double CRLF (end of headers) -/
-  private def findHeaderEnd (s : String) : Option (String × String) :=
+  def findHeaderEnd (s : String) : Option (String × String) :=
     let doubleCrlf := "\r\n\r\n"
     match findSubstr? s doubleCrlf with
     | some ⟨startPos, endPos⟩ =>
@@ -88,7 +88,7 @@ namespace Response
     | none => none
 
   /-- Parse the status line: "HTTP/1.1 200 OK" -/
-  private def parseStatusLine (line : String) : Option Status := do
+  def parseStatusLine (line : String) : Option Status := do
     -- Split on spaces
     let parts := line.splitOn " "
     guard (parts.length >= 2)
@@ -103,7 +103,7 @@ namespace Response
     some ⟨code, if reason.isEmpty then Status.reasonForCode code else reason⟩
 
   /-- Parse header lines into Headers -/
-  private def parseHeaders (headerBlock : String) : Headers :=
+  def parseHeaders (headerBlock : String) : Headers :=
     let lines := headerBlock.splitOn "\r\n"
     lines.filterMap fun line =>
       match line.splitOn ": " with
@@ -141,7 +141,7 @@ namespace Response
     some {
       status := status
       headers := headers
-      body := body
+      body := .Text body
     }
 
   /-- Create a simple OK response (for testing) -/
@@ -149,17 +149,17 @@ namespace Response
     { status := Status.ok
       headers := if body.isEmpty then []
                  else [("Content-Length", toString body.length)]
-      body := body }
+      body := .Text body }
 
   /-- Create a simple error response (for testing) -/
   def error (status : Status) (message : String := "") : Response :=
     { status := status
       headers := if message.isEmpty then []
                  else [("Content-Length", toString message.length)]
-      body := message }
+      body := .Text message }
 
   instance : ToString Response where
-    toString r := s!"Response({r.status}, body={r.body.length} bytes)"
+    toString r := s!"Response({r.status}, body={r.body})"
 
 end Response
 

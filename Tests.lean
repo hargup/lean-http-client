@@ -39,7 +39,7 @@ def testResponseParsing : IO Unit := do
   match Response.parse raw with
   | some res =>
     assert "Status 200" (res.status.code == 200)
-    assert "Body correct" (res.body == "Body")
+    assert "Body correct" (toString res.body == "Body")
   | none => assert "Response parse failed" false
 
 def testMockTransport : IO Unit := do
@@ -59,7 +59,7 @@ def testMockTransport : IO Unit := do
   match Url.parse "http://mock.local/test" with
   | some u =>
     match ← client.send (Request.get u) with
-    | .ok res => assert "Mock response received" (res.body == "Mock Response")
+    | .ok res => assert "Mock response received" (toString res.body == "Mock Response")
     | .error e => assert s!"Mock failed: {e}" false
   | none => assert "Url parse failed" false
 

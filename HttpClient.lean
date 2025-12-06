@@ -25,7 +25,7 @@ def post (url : String) (body : String) : IO (HttpResult Response) := do
   match Url.parse url with
   | some u =>
     let client ← Client.new
-    let req := Request.post u |>.withBody body
+    let req := Request.post u |>.withText body
     client.send req
   | none => return .error (.parseError s!"Invalid URL: {url}")
 
