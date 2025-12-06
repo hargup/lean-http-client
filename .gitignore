@@ -1,0 +1,17 @@
+# Lake build artifacts
+.lake/
+lake-packages/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
