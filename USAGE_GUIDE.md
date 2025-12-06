@@ -20,13 +20,13 @@ This guide explains how to integrate the HTTP Client library into your own Lean 
 Edit your project's `lakefile.lean` and add:
 
 ```lean
-require http-client from git "https://github.com/yourusername/http-client.git"
+require http-client from git "https://github.com/hargup/lean-http-client.git"
 ```
 
 For a specific version/branch:
 
 ```lean
-require http-client from git "https://github.com/yourusername/http-client.git" @ "v1.0.0"
+require http-client from git "https://github.com/hargup/lean-http-client.git" @ "v1.0.0"
 ```
 
 ### Step 2: Update Lake Dependencies
