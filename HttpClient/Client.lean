@@ -94,4 +94,3 @@ namespace Client
 end Client
 
 end HttpClient
-
