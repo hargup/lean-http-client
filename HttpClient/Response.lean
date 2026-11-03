@@ -20,7 +20,7 @@ namespace Response
   private partial def findSubstr? (s : String) (pattern : String) : Option (String.Pos.Raw × String.Pos.Raw) :=
     if pattern.isEmpty then some (String.Pos.Raw.mk 0, String.Pos.Raw.mk 0)
     else
-      let pLen := pattern.toSubstring.bsize
+      let pLen := pattern.toRawSubstring.bsize
       let rec loop (pos : String.Pos.Raw) : Option (String.Pos.Raw × String.Pos.Raw) :=
         if String.Pos.Raw.atEnd s pos then none
         else
@@ -73,7 +73,7 @@ namespace Response
     match findSubstr? s crlf with
     | some ⟨startPos, endPos⟩ =>
       let first := String.Pos.Raw.extract s (String.Pos.Raw.mk 0) startPos
-      let rest := String.Pos.Raw.extract s endPos (String.endPos s)
+      let rest := String.Pos.Raw.extract s endPos s.rawEndPos
       some (first, rest)
     | none => none
 
@@ -83,7 +83,7 @@ namespace Response
     match findSubstr? s doubleCrlf with
     | some ⟨startPos, endPos⟩ =>
       let headers := String.Pos.Raw.extract s (String.Pos.Raw.mk 0) startPos
-      let body := String.Pos.Raw.extract s endPos (String.endPos s)
+      let body := String.Pos.Raw.extract s endPos s.rawEndPos
       some (headers, body)
     | none => none
 
@@ -107,10 +107,8 @@ namespace Response
     let lines := headerBlock.splitOn "\r\n"
     lines.filterMap fun line =>
       match line.splitOn ": " with
-      | [name, value] => some (name, value.trimRight)
-      | name :: rest =>
-        if rest.isEmpty then none
-        else some (name, (": ".intercalate rest).trimRight)
+      | name :: rest@(_ :: _) =>
+        some (name, (": ".intercalate rest).trimAsciiEnd.toString)
       | _ => none
 
   /--
