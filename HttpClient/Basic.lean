@@ -198,13 +198,15 @@ namespace Headers
   def toLines (h : Headers) : List String :=
     h.map (fun (n, v) => s!"{n}: {v}")
 
+  private def trimEnd (s : String) : String :=
+    String.ofList (s.toList.reverse.dropWhile Char.isWhitespace).reverse
+
   /-- Parse headers from lines -/
   def fromLines (lines : List String) : Headers :=
     lines.filterMap fun line =>
       match line.splitOn ": " with
-      | [name, value] => some (name, value.trimRight)
-      | name :: rest => some (name, (": ".intercalate rest).trimRight)
-      | _ => none
+      | name :: rest@(_ :: _) => some (name, trimEnd (": ".intercalate rest))
+      | _                     => none   -- no ": " in the line
 
   instance : ToString Headers where
     toString h := "\n".intercalate h.toLines

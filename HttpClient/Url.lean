@@ -65,12 +65,10 @@ namespace Url
 
   /-- Helper: split string on first occurrence of character -/
   private def splitOnFirst (s : String) (c : Char) : Option (String × String) :=
-    match s.posOf c with
-    | ⟨pos⟩ =>
-      if pos < s.length then
-        some (s.take pos, s.drop (pos + 1))
-      else
-        none
+    match s.splitOn c.toString with
+    | []        => none
+    | [_]       => none            -- separator not found
+    | a :: rest => some (a, c.toString.intercalate rest)
 
   /-- Helper: split string on last occurrence of character -/
   private def splitOnLast (s : String) (c : Char) : Option (String × String) :=
@@ -79,7 +77,7 @@ namespace Url
     match reversed.findIdx? (· == c) with
     | some idx =>
       let splitPos := chars.length - 1 - idx
-      some (s.take splitPos, s.drop (splitPos + 1))
+      some ((s.take splitPos).toString, (s.drop (splitPos + 1)).toString)
     | none => none
 
   /--
@@ -103,9 +101,9 @@ namespace Url
 
     -- Split off fragment (if any)
     let (beforeFragment, fragment) :=
-      match splitOnFirst afterScheme '#' with
+      match splitOnFirst afterScheme.toString '#' with
       | some (before, frag) => (before, some frag)
-      | none => (afterScheme, none)
+      | none => (afterScheme.toString, none)
 
     -- Split off query (if any)
     let (beforeQuery, query) :=
@@ -115,12 +113,10 @@ namespace Url
 
     -- Split authority from path
     let (authority, path) :=
-      match beforeQuery.posOf '/' with
-      | ⟨pos⟩ =>
-        if pos < beforeQuery.length then
-          (beforeQuery.take pos, beforeQuery.drop pos)
-        else
-          (beforeQuery, "/")
+      match beforeQuery.splitOn "/" with
+      | [a]       => (a, "/")
+      | a :: rest => (a, "/" ++ "/".intercalate rest)
+      | []        => (beforeQuery, "/")   -- unreachable, splitOn never returns []
 
     -- Parse authority (host[:port])
     let (host, port) :=

@@ -43,11 +43,12 @@ namespace Client
     else
       -- Relative path handling (simplified: just append to current path's dir)
       -- This is not fully RFC compliant but handles common cases
-      let dir := if base.path.endsWith "/" then base.path else
-        match base.path.revPosOf '/' with
-        | some pos => String.Pos.Raw.extract base.path (String.Pos.Raw.mk 0) (String.Pos.Raw.next base.path pos)
-        | none => "/"
+      let dir :=
+        match base.path.splitOn "/" with
+        | parts@(_ :: _ :: _) => "/".intercalate parts.dropLast ++ "/"
+        | _                   => "/"
       some { base with path := dir ++ location, query := none, fragment := none }
+
 
   /-- Internal loop for handling redirects -/
   private partial def sendLoop (c : Client) (req : Request) (redirectsRemaining : Nat) : IO (HttpResult Response) := do
